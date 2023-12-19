@@ -51,6 +51,7 @@ def fetch_table_content(url):
             if link:
                 path = link.get('href')
                 # If link isn't ends with a file extension or doesn't start with https
+                # TODO: Resolve upper layer causing exceeding recursive depth issue
                 if path and not path.startswith('https'):
                     if path.endswith(('.pdf', '.mp3', '.mp4')):
                         print("Downloading...", base_path + path)
