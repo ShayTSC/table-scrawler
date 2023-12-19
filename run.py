@@ -1,19 +1,29 @@
 import os
 import shutil
+import time
 
 import requests
 from bs4 import BeautifulSoup
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 base_path = 'https://pastpapers.co/cie/'
 
+# Create a requests session
+session = requests.Session()
+retry = Retry(connect=3, backoff_factor=0.5)
+adapter = HTTPAdapter(max_retries=retry)
+session.mount('http://', adapter)
+session.mount('https://', adapter)
+
 
 def fetch_table_content(url):
-    # Fetch the HTML content from the URL
-    response = requests.get(url)
-
-    # Check if the request was successful
-    if response.status_code != 200:
-        print(f"Failed to retrieve the webpage: {response.status_code}")
+    try:
+        # Fetch the HTML content from the URL with timeout and session
+        response = session.get(url, timeout=5)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        print(f"Request failed: {e}")
         return None
 
     # Parse the HTML content using BeautifulSoup
@@ -62,11 +72,11 @@ def handle_preview_download(url):
         print(f"File already exists: {url.split('/')[-1]}")
         return None
 
-
-    response = requests.get(url)
-
-    if response.status_code != 200:
-        print(f"Failed to retrieve the webpage: {response.status_code}")
+    try:
+        response = session.get(url, timeout=5)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        print(f"Request failed: {e}")
         return None
 
     soup = BeautifulSoup(response.text, 'html.parser')
@@ -83,16 +93,22 @@ def handle_preview_download(url):
 
 
 def download_file(url):
-
-
     # Download the file
-    response = requests.get(url)
+    try:
+        response = session.get(url, timeout=5)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        print(f"Request failed: {e}")
+        return None
+
     # Check if the request was successful
     if response.status_code != 200:
         print(f"Failed to retrieve the file: {response.status_code}")
         return None
+
     # Extract the file name from the URL
     file_name = url.split('/')[-1]
+
     # Save the file into './downloads' folder
     if (file_name.endswith('#view=FitH') or file_name.endswith('#view=FitV')):
         file_name = file_name[:-10]
