@@ -1,6 +1,5 @@
 import os
 import shutil
-import time
 
 import requests
 from bs4 import BeautifulSoup
@@ -51,19 +50,17 @@ def fetch_table_content(url):
             if link:
                 path = link.get('href')
                 # If link isn't ends with a file extension or doesn't start with https
-                # TODO: Resolve upper layer causing exceeding recursive depth issue
-                if path and not path.startswith('https'):
+                if path and not path.startswith('https') and path != '..':
                     if path.endswith(('.pdf', '.mp3', '.mp4')):
                         print("Downloading...", base_path + path)
                         # Download the file
                         handle_preview_download(base_path + path)
                     else:
+                        # if path is the subpath of current url, skip
+                        if path.startswith(url):
+                            continue
                         print("Getting into...", base_path + path)
                         fetch_table_content(base_path + path)
-
-        row_data = [col.text.strip() for col in columns]
-        if row_data:
-            table_data.append(row_data)
 
     return table_data
 
@@ -113,6 +110,18 @@ def download_file(url):
     # Save the file into './downloads' folder
     if (file_name.endswith('#view=FitH') or file_name.endswith('#view=FitV')):
         file_name = file_name[:-10]
+        
+    # If the file is empty, skip downloading
+    if len(file_name) == 0:
+        print(f"File is empty: {url}")
+        return None
+    
+    # Append the file name and download url and file size into a csv file
+    if not os.path.exists('./downloads/links.csv') or os.path.getsize('./downloads/links.csv') == 0:
+        with open('./downloads/links.csv', 'w') as f:
+            f.write('file_name,url,file_size\n')
+    with open('./downloads/links.csv', 'a') as f:
+        f.write(file_name + ',' + url + ',' + str(len(response.content)) + '\n')
     with open('./downloads/' + file_name, 'wb') as f:
         f.write(response.content)
 
@@ -140,11 +149,9 @@ def house_keeping():
 
 
 # Example usage
-url = 'https://pastpapers.co/cie/?dir=IGCSE/Chinese-Mandarin-Foreign-Language-0547'  # Replace with the actual URL
+url = 'https://pastpapers.co/cie/?dir=IGCSE/Chinese-First-Language-0509'  # Replace with the actual URL
 data = fetch_table_content(url)
 
 if data:
     for row in data:
-        # print(row)
-        # print("end")
         row = '\t'.join(row)
